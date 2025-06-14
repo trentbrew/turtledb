@@ -2,6 +2,9 @@ import type { Node, Edge } from '../types/index.ts';
 import { EventEmitter, type GraphEventMap } from './events.ts';
 import type { TurtleDBSchema } from '../types/schema.ts';
 import { validateSchema } from './schema-validator.ts';
+import localforage from 'localforage';
+
+const turtledb = localforage.createInstance({ name: 'turtledb' });
 
 export class GraphCore {
   private _nodes: Map<string, Node> = new Map();
@@ -253,5 +256,30 @@ export class GraphCore {
     };
     this.addEdge(edge);
     return edge;
+  }
+
+  /**
+   * Persist all nodes and edges to IndexedDB via localforage (turtledb instance)
+   */
+  async save() {
+    await turtledb.setItem('nodes', this.getNodes());
+    await turtledb.setItem('edges', this.getEdges());
+  }
+
+  /**
+   * Load nodes and edges from IndexedDB via localforage (turtledb instance)
+   */
+  async load() {
+    let nodes: any = await turtledb.getItem('nodes');
+    let edges: any = await turtledb.getItem('edges');
+    if (!Array.isArray(nodes)) nodes = [];
+    if (!Array.isArray(edges)) edges = [];
+    this.clear();
+    for (const node of nodes) {
+      this._nodes.set(node.id, node);
+    }
+    for (const edge of edges) {
+      this._edges.set(edge.id, edge);
+    }
   }
 }
