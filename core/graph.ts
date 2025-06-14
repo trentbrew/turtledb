@@ -1,23 +1,63 @@
-import type { Node, Edge } from '../types/index.ts';
-import { EventEmitter, type GraphEventMap } from './events.ts';
-import type { TurtleDBSchema } from '../types/schema.ts';
-import { validateSchema } from './schema-validator.ts';
-import localforage from 'localforage';
+import type { Edge, Node } from "../types/index.ts";
+import { EventEmitter, type GraphEventMap } from "./events.ts";
+import type { TurtleDBSchema } from "../types/schema.ts";
+import { validateSchema } from "./schema-validator.ts";
+import localforage from "localforage";
+import { getEmbedding } from "./embeddings.ts";
 
-const turtledb = localforage.createInstance({ name: 'turtledb' });
+const turtledb = localforage.createInstance({ name: "turtledb" });
+
+// Type for a soft (generative) link
+export type SoftLink = {
+  sourceId: string;
+  targetId: string;
+  type: "soft";
+  reason: "embedding_similarity" | "property_reference";
+  score?: number;
+  property?: string;
+};
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (!a || !b || a.length !== b.length) return 0;
+  let dot = 0,
+    normA = 0,
+    normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB) || 1);
+}
 
 export class GraphCore {
   private _nodes: Map<string, Node> = new Map();
   private _edges: Map<string, Edge> = new Map();
   private _events = new EventEmitter();
   private _schema?: TurtleDBSchema; // Store the validated schema
+  private _scanOnLoad: boolean;
+  private _getEmbedding: (value: string) => Promise<number[]>;
+  public softLinks: SoftLink[] = [];
 
-  constructor(schema?: TurtleDBSchema) {
+  /**
+   * @param schema - The TurtleDB schema
+   * @param opts.scanOnLoad - If true, automatically scan/enrich nodes/edges after load (default: false)
+   * @param opts.embeddingFn - A function to generate embeddings. Defaults to the built-in getEmbedding.
+   */
+  constructor(
+    schema?: TurtleDBSchema,
+    opts?: {
+      scanOnLoad?: boolean;
+      embeddingFn?: (value: string) => Promise<number[]>;
+    },
+  ) {
     if (schema) {
       validateSchema(schema);
       this._schema = schema;
-      console.log('Schema loaded and validated successfully.');
+      console.log("Schema loaded and validated successfully.");
     }
+    this._scanOnLoad = opts?.scanOnLoad ?? false;
+    this._getEmbedding = opts?.embeddingFn || getEmbedding;
   }
 
   // Event API
@@ -29,7 +69,7 @@ export class GraphCore {
   }
 
   // Node CRUD
-  addNode(node: Node) {
+  addNode(node: Node & { embedding?: number[] }) {
     if (this._nodes.has(node.id)) {
       throw new Error(`Node with ID "${node.id}" already exists.`);
     }
@@ -41,14 +81,14 @@ export class GraphCore {
           `Node type "${node.type}" is not defined in the schema.`,
         );
       }
-      this._validateData(node.type, 'node', node.data, nodeTypeConfig.data);
+      this._validateData(node.type, "node", node.data, nodeTypeConfig.data);
     }
 
     this._nodes.set(node.id, node);
-    this._events.emit('node:add', node);
+    this._events.emit("node:add", node);
   }
 
-  updateNode(id: string, update: Partial<Omit<Node, 'id' | 'type'>>) {
+  updateNode(id: string, update: Partial<Omit<Node, "id" | "type">>) {
     const node = this._nodes.get(id);
     if (node) {
       const oldNode = { ...node, data: { ...node.data } };
@@ -56,10 +96,10 @@ export class GraphCore {
       const { data, ...rest } = update;
       Object.assign(node, rest);
 
-      if (data && typeof data === 'object') {
+      if (data && typeof data === "object") {
         node.data = { ...node.data, ...data };
       }
-      this._events.emit('node:update', { node, changes: update });
+      this._events.emit("node:update", { node, changes: update });
     }
   }
   deleteNode(id: string) {
@@ -69,10 +109,10 @@ export class GraphCore {
       for (const [edgeId, edge] of this._edges.entries()) {
         if (edge.sourceNodeId === id || edge.targetNodeId === id) {
           this._edges.delete(edgeId);
-          this._events.emit('edge:delete', edgeId);
+          this._events.emit("edge:delete", edgeId);
         }
       }
-      this._events.emit('node:delete', id);
+      this._events.emit("node:delete", id);
     }
   }
   getNodes() {
@@ -89,7 +129,7 @@ export class GraphCore {
     const targetNode = this._nodes.get(edge.targetNodeId);
 
     if (!sourceNode || !targetNode) {
-      throw new Error('Source or target node not found for edge.');
+      throw new Error("Source or target node not found for edge.");
     }
 
     if (this._schema) {
@@ -100,7 +140,7 @@ export class GraphCore {
         );
       }
 
-      this._validateData(edge.type, 'edge', edge.data, edgeTypeConfig.data);
+      this._validateData(edge.type, "edge", edge.data, edgeTypeConfig.data);
 
       // Validate source and target node types
       if (edgeTypeConfig.source.node_type !== sourceNode.type) {
@@ -143,24 +183,24 @@ export class GraphCore {
     }
 
     this._edges.set(edge.id, edge);
-    this._events.emit('edge:add', edge);
+    this._events.emit("edge:add", edge);
   }
-  updateEdge(id: string, update: Partial<Omit<Edge, 'id' | 'type'>>) {
+  updateEdge(id: string, update: Partial<Omit<Edge, "id" | "type">>) {
     const edge = this._edges.get(id);
     if (edge) {
       // Prevent changing id or type
       const { data, ...rest } = update;
       Object.assign(edge, rest);
 
-      if (data && typeof data === 'object') {
+      if (data && typeof data === "object") {
         edge.data = { ...edge.data, ...data };
       }
-      this._events.emit('edge:update', { edge, changes: update });
+      this._events.emit("edge:update", { edge, changes: update });
     }
   }
   deleteEdge(id: string) {
     if (this._edges.delete(id)) {
-      this._events.emit('edge:delete', id);
+      this._events.emit("edge:delete", id);
     }
   }
   getEdges() {
@@ -171,7 +211,7 @@ export class GraphCore {
   clear() {
     this._nodes.clear();
     this._edges.clear();
-    this._events.emit('graph:clear');
+    this._events.emit("graph:clear");
   }
 
   // Schema Access
@@ -181,11 +221,11 @@ export class GraphCore {
 
   private _validateData(
     entityType: string,
-    entityClass: 'node' | 'edge',
+    entityClass: "node" | "edge",
     data: any,
     schemaData: any,
   ) {
-    if (typeof schemaData !== 'object' || schemaData === null) return; // No properties to validate
+    if (typeof schemaData !== "object" || schemaData === null) return; // No properties to validate
 
     const schemaKeys = Object.keys(schemaData);
     const dataKeys = Object.keys(data);
@@ -220,12 +260,15 @@ export class GraphCore {
   // --- Factories ---
 
   private _generateId(): string {
-    return typeof crypto !== 'undefined' && crypto.randomUUID
+    return typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
       : Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
 
-  public createNode<T = any>(type: string, data: T): Node<T> {
+  public async createNode<T = any>(
+    type: string,
+    data: T,
+  ): Promise<Node<T> & { embedding: number[] }> {
     const now = new Date().toISOString();
     const node: Node<T> = {
       id: this._generateId(),
@@ -234,8 +277,11 @@ export class GraphCore {
       createdAt: now,
       updatedAt: now,
     };
-    this.addNode(node);
-    return node;
+    // Generate embedding from stringified data
+    const embedding = await this._getEmbedding(JSON.stringify(data));
+    (node as any).embedding = embedding;
+    this.addNode(node as Node<T> & { embedding: number[] });
+    return node as Node<T> & { embedding: number[] };
   }
 
   public createEdge<T = any>(
@@ -262,16 +308,17 @@ export class GraphCore {
    * Persist all nodes and edges to IndexedDB via localforage (turtledb instance)
    */
   async save() {
-    await turtledb.setItem('nodes', this.getNodes());
-    await turtledb.setItem('edges', this.getEdges());
+    await turtledb.setItem("nodes", this.getNodes());
+    await turtledb.setItem("edges", this.getEdges());
   }
 
   /**
    * Load nodes and edges from IndexedDB via localforage (turtledb instance)
+   * If scanOnLoad is true, also scan/enrich after loading.
    */
   async load() {
-    let nodes: any = await turtledb.getItem('nodes');
-    let edges: any = await turtledb.getItem('edges');
+    let nodes: Node[] | null = await turtledb.getItem("nodes");
+    let edges: Edge[] | null = await turtledb.getItem("edges");
     if (!Array.isArray(nodes)) nodes = [];
     if (!Array.isArray(edges)) edges = [];
     this.clear();
@@ -280,6 +327,116 @@ export class GraphCore {
     }
     for (const edge of edges) {
       this._edges.set(edge.id, edge);
+    }
+    if (this._scanOnLoad) {
+      await this.scan();
+    }
+  }
+
+  /**
+   * Scan all nodes and edges, add embeddings to nodes missing them,
+   * and enrich nodes/edges with tags and description if missing.
+   */
+  async scan() {
+    // Enrich nodes
+    for (const node of this.getNodes()) {
+      let changed = false;
+      if (!("embedding" in node)) {
+        (node as any).embedding = await this._getEmbedding(
+          JSON.stringify(node.data),
+        );
+        changed = true;
+      }
+      if (!("tags" in node)) {
+        (node as any).tags = this._autoTags(node.data);
+        changed = true;
+      }
+      if (!("description" in node)) {
+        (node as any).description = this._autoDescription(node.data);
+        changed = true;
+      }
+      if (changed) {
+        this._nodes.set(node.id, node);
+      }
+    }
+    // Enrich edges
+    for (const edge of this.getEdges()) {
+      let changed = false;
+      if (!("tags" in edge)) {
+        (edge as any).tags = this._autoTags(edge.data);
+        changed = true;
+      }
+      if (!("description" in edge)) {
+        (edge as any).description = this._autoDescription(edge.data);
+        changed = true;
+      }
+      if (changed) {
+        this._edges.set(edge.id, edge);
+      }
+    }
+    // Generate soft links after enrichment
+    await this.generateSoftLinks();
+  }
+
+  /**
+   * Simple tag generator: returns array of string keys from data
+   */
+  private _autoTags(data: unknown): string[] {
+    return Object.keys(data || {});
+  }
+
+  /**
+   * Simple description generator: returns a stringified summary of data
+   */
+  private _autoDescription(data: unknown): string {
+    return typeof data === "object" ? JSON.stringify(data) : String(data);
+  }
+
+  /**
+   * Generate soft (generative) links between nodes based on embeddings and property references.
+   * Soft links are not persisted and are kept in-memory only.
+   */
+  async generateSoftLinks() {
+    this.softLinks = [];
+    const nodes = this.getNodes();
+    // 1. Embedding similarity (cosine > 0.9)
+    for (let i = 0; i < nodes.length; i++) {
+      const a = nodes[i];
+      if (!("embedding" in a)) continue;
+      for (let j = i + 1; j < nodes.length; j++) {
+        const b = nodes[j];
+        if (!("embedding" in b)) continue;
+        const sim = cosineSimilarity(
+          (a as any).embedding,
+          (b as any).embedding,
+        );
+        if (sim > 0.9) {
+          this.softLinks.push({
+            sourceId: a.id,
+            targetId: b.id,
+            type: "soft",
+            reason: "embedding_similarity",
+            score: sim,
+          });
+        }
+      }
+    }
+    // 2. Property reference (if a property matches another node's id)
+    for (const node of nodes) {
+      for (const [key, value] of Object.entries(node.data || {})) {
+        if (typeof value === "string") {
+          const target = nodes.find((n) => n.id === value);
+          if (target) {
+            this.softLinks.push({
+              sourceId: node.id,
+              targetId: target.id,
+              type: "soft",
+              reason: "property_reference",
+              property: key,
+            });
+          }
+        }
+      }
     }
   }
 }

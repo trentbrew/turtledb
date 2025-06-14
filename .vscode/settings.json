@@ -8,5 +8,8 @@
     "**/Thumbs.db": true,
     "node_modules": true
   },
-  "hide-files.files": ["node_modules"]
+  "hide-files.files": ["node_modules"],
+  "deno.enable": true,
+  "deno.unstable": true,
+  "editor.defaultFormatter": "denoland.vscode-deno"
 }

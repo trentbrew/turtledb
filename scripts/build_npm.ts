@@ -1,33 +1,56 @@
 // ex. scripts/build_npm.ts
-import { build, emptyDir } from '@deno/dnt'
+import { build, emptyDir } from "@deno/dnt";
 
-await emptyDir('./npm')
+await emptyDir("./npm");
 
 await build({
-  entryPoints: ['./main.ts'],
-  outDir: './npm',
+  entryPoints: ["./mod.ts"],
+  outDir: "./npm",
+  test: false,
   shims: {
-    // see JS docs for overview and more options
+    // We are building for a browser environment, so we don't want to use the
+    // Node.js-specific Deno shims.
     deno: false,
+    crypto: true,
+    // Shim out Node.js specific modules that are transitively imported
+    // by @xenova/transformers
+    "onnxruntime-node": true,
+    "os": true,
+    "path": true,
+    "fs": true,
+    "http": true,
+    "https": true,
+    "url": true,
+    "util": true,
   },
   package: {
     // package.json properties
-    name: 'framework-agnostic-graph',
-    version: '0.1.0',
-    description: 'Framework-agnostic graph data layer (nodes, edges, CRUD, events) for JS/TS projects.',
-    license: 'MIT',
+    name: "turtledb",
+    version: "0.1.0",
+    description:
+      "Framework-agnostic graph data layer (nodes, edges, CRUD, events) for JS/TS projects.",
+    license: "MIT",
     repository: {
-      type: 'git',
-      url: 'https://github.com/username/repo.git',
+      type: "git",
+      url: "https://github.com/turtledb",
     },
     bugs: {
-      url: 'https://github.com/username/repo/issues',
+      url: "https://github.com/turtledb/issues",
     },
-    keywords: ['graph', 'data', 'typescript', 'framework-agnostic', 'nodes', 'edges', 'event-emitter', 'crud'],
+    keywords: [
+      "graph",
+      "data",
+      "typescript",
+      "framework-agnostic",
+      "nodes",
+      "edges",
+      "event-emitter",
+      "crud",
+    ],
   },
   postBuild() {
     // steps to run after building and before running the tests
-    Deno.copyFileSync('LICENSE', 'npm/LICENSE')
-    Deno.copyFileSync('README.md', 'npm/README.md')
+    Deno.copyFileSync("LICENSE", "npm/LICENSE");
+    Deno.copyFileSync("README.md", "npm/README.md");
   },
-})
+});

@@ -1,7 +1,0 @@
-{
-	"dependencies": {
-		"localbase": "^0.7.7",
-		"localforage": "^1.10.0",
-		"tau-prolog": "^0.3.4"
-	}
-}

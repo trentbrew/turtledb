@@ -6,4 +6,7 @@ publish:
 test-prolog:
     deno test --allow-all ./tests/queries/prolog.test.ts
 
+build:
+    deno task build
+
 # test-graph removed because core/graph.test.ts no longer exists
