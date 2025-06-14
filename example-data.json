@@ -1,0 +1,99 @@
+[
+  {
+    "id": "m1",
+    "type": "member",
+    "data": {
+      "firstName": "Alice",
+      "lastName": "Smith",
+      "email": "alice@example.com",
+      "isActive": true
+    }
+  },
+  {
+    "id": "m2",
+    "type": "member",
+    "data": {
+      "firstName": "Bob",
+      "lastName": "Jones",
+      "email": "bob@example.com",
+      "isActive": false
+    }
+  },
+  {
+    "id": "a1",
+    "type": "author",
+    "data": {
+      "firstName": "Carol",
+      "lastName": "Johnson",
+      "email": "carol@example.com",
+      "isActive": true
+    }
+  },
+  {
+    "id": "a2",
+    "type": "author",
+    "data": {
+      "firstName": "Dave",
+      "lastName": "Lee",
+      "email": "dave@example.com",
+      "isActive": true
+    }
+  },
+  {
+    "id": "p1",
+    "type": "post",
+    "data": {
+      "title": "Hello World",
+      "content": "This is Alice's first post.",
+      "published": true
+    }
+  },
+  {
+    "id": "p2",
+    "type": "post",
+    "data": {
+      "title": "Draft Post",
+      "content": "This is a draft.",
+      "published": false
+    }
+  },
+  {
+    "id": "pub1",
+    "type": "publication",
+    "data": {
+      "title": "Graph Databases 101",
+      "content": "An introduction to graph databases.",
+      "published": true
+    }
+  },
+  {
+    "id": "pub2",
+    "type": "publication",
+    "data": {
+      "title": "Advanced Graph Theory",
+      "content": "A deep dive into graph theory.",
+      "published": false
+    }
+  },
+  {
+    "id": "e1",
+    "type": "wrote",
+    "sourceNodeId": "a1",
+    "targetNodeId": "pub1",
+    "data": {}
+  },
+  {
+    "id": "e2",
+    "type": "wrote",
+    "sourceNodeId": "a2",
+    "targetNodeId": "pub2",
+    "data": {}
+  },
+  {
+    "id": "e3",
+    "type": "wrote",
+    "sourceNodeId": "a1",
+    "targetNodeId": "pub2",
+    "data": {}
+  }
+]

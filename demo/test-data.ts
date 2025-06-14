@@ -1,4 +1,4 @@
-import type { Node, Edge } from '../core/types'
+import type { Node, Edge } from '../types/index.ts';
 
 export const sampleNodes: Node[] = [
   {
@@ -15,7 +15,7 @@ export const sampleNodes: Node[] = [
     createdAt: '2023-01-01T00:00:00Z',
     updatedAt: '2023-01-01T00:00:00Z',
   },
-]
+];
 
 export const sampleEdges: Edge[] = [
   {
@@ -27,4 +27,4 @@ export const sampleEdges: Edge[] = [
     createdAt: '2023-01-01T00:00:00Z',
     updatedAt: '2023-01-01T00:00:00Z',
   },
-]
+];

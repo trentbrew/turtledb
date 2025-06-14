@@ -1,0 +1,68 @@
+[
+  {
+    "type": "person",
+    "name": "alice",
+    "occupation": "engineer",
+    "hobbies": ["reading", "hiking"]
+  },
+  {
+    "type": "person",
+    "name": "bob",
+    "occupation": "teacher",
+    "hobbies": ["painting", "cycling"]
+  },
+  {
+    "type": "person",
+    "name": "carol",
+    "occupation": "designer",
+    "hobbies": ["gaming", "reading"]
+  },
+  {
+    "type": "person",
+    "name": "dave",
+    "occupation": "engineer",
+    "hobbies": ["hiking", "fishing"]
+  },
+  {
+    "type": "person",
+    "name": "eve",
+    "occupation": "artist",
+    "hobbies": ["cooking", "painting"]
+  },
+  {
+    "type": "person",
+    "name": "frank",
+    "occupation": "gardener",
+    "hobbies": ["gardening"]
+  },
+  {
+    "type": "relationship",
+    "kind": "friend",
+    "person1": "alice",
+    "person2": "bob"
+  },
+  {
+    "type": "relationship",
+    "kind": "friend",
+    "person1": "bob",
+    "person2": "eve"
+  },
+  {
+    "type": "relationship",
+    "kind": "friend",
+    "person1": "carol",
+    "person2": "dave"
+  },
+  {
+    "type": "relationship",
+    "kind": "friend",
+    "person1": "eve",
+    "person2": "frank"
+  },
+  {
+    "type": "relationship",
+    "kind": "teacher",
+    "person1": "bob",
+    "person2": "carol"
+  }
+]
