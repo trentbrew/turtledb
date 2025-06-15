@@ -1,8 +1,9 @@
 // prolog.ts
-// Core Prolog-like engine for querying JSON facts
+// Core Prolog-like engine for querying JSON facts - Node.js version
 
-import type { Node, Edge } from '../types/index.ts';
-import type { TurtleDBSchema } from '../types/schema.ts';
+import type { Edge, Node } from "../types/index.ts";
+import type { TurtleDBSchema } from "../types/schema.ts";
+import { readFile } from "node:fs/promises";
 
 export type Fact = Record<string, any>;
 
@@ -11,10 +12,10 @@ export class PrologEngine {
 
   // Load facts from a JSON file (array of objects)
   async loadFactsFromJSON(path: string): Promise<void> {
-    const text = await Deno.readTextFile(path);
+    const text = await readFile(path, "utf-8");
     const data = JSON.parse(text);
     if (!Array.isArray(data)) {
-      throw new Error('JSON file must contain an array of fact objects');
+      throw new Error("JSON file must contain an array of fact objects");
     }
     this.facts.push(...data);
   }
@@ -64,7 +65,7 @@ export class PrologEngine {
         break;
       }
 
-      if (typeof queryValue === 'string' && queryValue.startsWith('$')) {
+      if (typeof queryValue === "string" && queryValue.startsWith("$")) {
         // It's a variable
         const varName = queryValue.substring(1); // Remove the '$' prefix
         // Removed console.log for clean output
@@ -144,14 +145,14 @@ export class PrologEngine {
  * Strings are quoted, numbers/booleans are left as-is, null/undefined become '_'.
  */
 function toPrologValue(val: any): string {
-  if (val === null || val === undefined) return '_';
-  if (typeof val === 'string') {
+  if (val === null || val === undefined) return "_";
+  if (typeof val === "string") {
     // Escape quotes and backslashes
-    const escaped = val.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const escaped = val.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     return `"${escaped}"`;
   }
-  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
-  return '_'; // fallback for objects/arrays
+  if (typeof val === "number" || typeof val === "boolean") return String(val);
+  return "_"; // fallback for objects/arrays
 }
 
 /**
@@ -178,7 +179,7 @@ export function graphToPrologFacts(
       node.id,
       ...propKeys.map((k) => toPrologValue(node.data?.[k])),
     ];
-    lines.push(`${nodeType}(${args.join(', ')}).`);
+    lines.push(`${nodeType}(${args.join(", ")}).`);
   }
 
   // Edges
@@ -192,23 +193,15 @@ export function graphToPrologFacts(
       edge.targetNodeId,
       ...propKeys.map((k) => toPrologValue(edge.data?.[k])),
     ];
-    lines.push(`${edgeType}(${args.join(', ')}).`);
+    lines.push(`${edgeType}(${args.join(", ")}).`);
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /**
- * Runs a Prolog query on the current graph using Tau Prolog.
- * @param nodes Array of Node objects
- * @param edges Array of Edge objects
- * @param schema The TurtleDBSchema
- * @param query The Prolog query string (e.g., 'author(Id, _, "Smith", _).')
- * @returns Promise resolving to an array of variable bindings (JS objects)
- *
- * Example:
- *   const results = await queryProlog(nodes, edges, schema, 'author(Id, _, "Smith", _).');
- *   // results: [ { Id: 'a1' }, ... ]
+ * Node.js-native tau-prolog integration
+ * Executes Prolog queries using the tau-prolog engine
  */
 export async function queryProlog(
   nodes: Node[],
@@ -216,72 +209,71 @@ export async function queryProlog(
   schema: TurtleDBSchema,
   query: string,
 ): Promise<Record<string, any>[]> {
-  const pl =
-    (await import('tau-prolog')).default || (await import('tau-prolog'));
-  // Optionally import lists module if needed
-  // If you need lists, dynamically import and register the module
-  try {
-    const listsModule = await import('tau-prolog/modules/lists.js');
-    if (typeof listsModule.default === 'function') listsModule.default(pl);
-  } catch (e) {
-    // lists module not found or not needed; ignore
-  }
+  // Dynamic import for tau-prolog (ES modules)
+  const pl = await import("tau-prolog");
 
-  const session = pl.create(10000); // 10k steps limit
+  // Note: Lists module not available in this version of tau-prolog
+
+  // Generate Prolog facts from graph data
   const facts = graphToPrologFacts(nodes, edges, schema);
 
-  // Load facts
-  await new Promise<void>((resolve, reject) => {
+  console.log("--- Generated Prolog Facts ---");
+  console.log(facts);
+  console.log("----------------------------");
+
+  // Create a new Prolog session
+  const session = (pl.default || pl).create(1000);
+
+  return new Promise((resolve, reject) => {
+    // Consult the facts
     session.consult(facts, {
-      success: () => resolve(),
-      error: (err: any) => reject(new Error('Prolog consult error: ' + err)),
-    });
-  });
+      success: () => {
+        // Query the goal
+        session.query(query, {
+          success: (goal: any) => {
+            const results: Record<string, any>[] = [];
 
-  // Load query
-  await new Promise<void>((resolve, reject) => {
-    session.query(query, {
-      success: () => resolve(),
-      error: (err: any) => reject(new Error('Prolog query error: ' + err)),
-    });
-  });
-
-  // Collect all answers
-  const results: Record<string, any>[] = [];
-  await new Promise<void>((resolve, reject) => {
-    function next() {
-      session.answer({
-        success: (answer: any) => {
-          if (pl.type.is_substitution(answer)) {
-            // Convert answer to JS object
-            const vars = Object.keys(answer.links);
-            const obj: Record<string, any> = {};
-            for (const v of vars) {
-              const term = answer.links[v];
-              if (term) {
-                // term.toString() gives the Prolog representation.
-                // e.g., atom 'a1' -> "a1", string "hello" -> "'hello'"
-                let value = term.toString();
-                if (term.is_string && term.is_string()) {
-                  // Remove the surrounding single quotes for strings
-                  value = value.slice(1, -1);
-                }
-                obj[v] = value;
-              }
+            // Collect all answers
+            function next() {
+              session.answer({
+                success: (answer: any) => {
+                  if (answer) {
+                    // Convert tau-prolog answer to plain object
+                    const result: Record<string, any> = {};
+                    for (const key in answer.links) {
+                      const value = answer.links[key];
+                      if (value && typeof value === "object" && "id" in value) {
+                        result[key] = value.id;
+                      } else {
+                        result[key] = value;
+                      }
+                    }
+                    results.push(result);
+                  }
+                  next(); // Get next answer
+                },
+                fail: () => {
+                  resolve(results);
+                },
+                error: (err: any) => {
+                  reject(new Error(`Prolog execution error: ${err}`));
+                },
+                limit: () => {
+                  resolve(results);
+                },
+              });
             }
-            results.push(obj);
-            next();
-          } else {
-            resolve();
-          }
-        },
-        fail: () => resolve(),
-        error: (err: any) => reject(new Error('Prolog answer error: ' + err)),
-        limit: () => resolve(),
-      });
-    }
-    next();
-  });
 
-  return results;
+            next();
+          },
+          error: (err: any) => {
+            reject(new Error(`Prolog query error: ${err}`));
+          },
+        });
+      },
+      error: (err: any) => {
+        reject(new Error(`Prolog consult error: ${err}`));
+      },
+    });
+  });
 }

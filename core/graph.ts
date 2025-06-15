@@ -54,7 +54,7 @@ export class GraphCore {
     if (schema) {
       validateSchema(schema);
       this._schema = schema;
-      console.log("Schema loaded and validated successfully.");
+      // Schema loaded and validated successfully
     }
     this._scanOnLoad = opts?.scanOnLoad ?? false;
     this._getEmbedding = opts?.embeddingFn || getEmbedding;

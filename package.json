@@ -1,0 +1,32 @@
+{
+  "name": "turtledb",
+  "version": "0.1.0",
+  "description": "Framework-agnostic graph data layer with real embeddings",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test",
+    "dev": "node --watch demo.js"
+  },
+  "dependencies": {
+    "@xenova/transformers": "^2.17.2",
+    "tau-prolog": "^0.3.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "graph",
+    "database",
+    "embeddings",
+    "semantic-search",
+    "typescript",
+    "nodejs"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "noEmit": false,
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": [
+    "core/embeddings.ts",
+    "core/prolog.ts",
+    "test-embeddings-node.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "npm",
+    "deno_modules",
+    "cli/**/*",
+    "adapters/**/*",
+    "tests/**/*",
+    "scripts/**/*",
+    "demo.ts",
+    "mod.ts",
+    "core/graph.ts",
+    "core/events.ts",
+    "core/types.ts",
+    "core/schema-validator.ts"
+  ]
+}

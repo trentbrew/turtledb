@@ -6,7 +6,7 @@ import {
   assertThrows,
 } from "https://deno.land/std@0.140.0/testing/asserts.ts";
 import { GraphCore } from "../../core/graph.ts";
-import { schema } from "../../demo/schema.example.ts";
+import { schema } from "../schema.example.ts";
 import type { Node } from "../../types/index.ts";
 
 const mockEmbeddingFn = (value: string) => {
