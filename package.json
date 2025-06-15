@@ -3,7 +3,13 @@
   "version": "0.1.0",
   "description": "Framework-agnostic graph data layer with real embeddings",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./adapters/react": "./adapters/react.js",
+    "./adapters/vue": "./adapters/vue.js",
+    "./adapters/svelte": "./adapters/svelte.js"
+  },
   "scripts": {
     "build": "tsc",
     "test": "node --test",
